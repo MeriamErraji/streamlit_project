@@ -5,6 +5,7 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 
+
 # Configuration de la page
 st.set_page_config(page_title="Suivi et Analyse du Portefeuille", layout="centered")
 
@@ -47,7 +48,7 @@ page = st.sidebar.radio("Aller à :", ["Accueil", "Analyse détaillée", "Portef
 
 # Affichage de la page
 if page == "Accueil":
-    st.image(os.path.join(data_folder, "Davoust_Patrimoine.png"), use_container_width=True)
+    st.image("/Users/Meriam/Desktop/M2.IEF/S2.IEF/Risque_et_Performance/projet_RisquePerformances/resultats_analyses/Davoust_Patrimoine.png", use_container_width=True)
     st.markdown("# 📊 **Suivi et Analyse du Portefeuille**")
     st.write("Bienvenue sur la plateforme d'analyse du portefeuille de Davoust Patrimoine.")
     
@@ -77,32 +78,54 @@ if page == "Accueil":
     
     for start, end in crises:
         fig.add_shape(type="rect", x0=start, x1=end, y0=1e6, y1=2.4e6, fillcolor="gray", opacity=0.3, layer="below", line_width=0)
-    
+     
     fig.update_layout(title=title, xaxis_title="Date", yaxis_title="Valeur (€)", yaxis_range=[1e6, 2.4e6], xaxis_rangeslider_visible=True)
     st.plotly_chart(fig, use_container_width=True)
+    if choix_portefeuille=="Voir mon portefeuille actuel":
+        # Affichage des indicateurs de risque et performance avec un meilleur style
+        st.markdown("### 📊 Indicateurs de Risque et Performance du portefeuille initial")
+        st.markdown(
+            f"""
+            <style>
+                .metric-container {{
+                    background-color: #f9f9f9;
+                    padding: 10px;
+                    border-radius: 10px;
+                    text-align: center;
+                    font-size: 18px;
+                }}
+            </style>
+            <div class="metric-container">
+                <b>Rendement Annuel :</b> {metriques_ptf_initial.iloc[0, 1]}<br>
+                <b>Volatilité Annuelle :</b> {metriques_ptf_initial.iloc[0, 2]}<br>
+                <b>Tracking Error (VS benchmark):</b> {metriques_ptf_initial.iloc[0, 3]}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else : 
+        st.markdown("### 📊 Indicateurs de Risque et Performance du portefeuille offensif")
+        st.markdown(
+            f"""
+            <style>
+                .metric-container {{
+                    background-color: #f9f9f9;
+                    padding: 10px;
+                    border-radius: 10px;
+                    text-align: center;
+                    font-size: 18px;
+                }}
+            </style>
+            <div class="metric-container">
+                <b>Rendement Annuel :</b> {metriques_ptf_arbitre.iloc[0, 1]}<br>
+                <b>Volatilité Annuelle :</b> {metriques_ptf_arbitre.iloc[0, 2]}<br>
+                <b>Tracking Error (VS le portefeuille initial) :</b> {metriques_ptf_arbitre.iloc[0, 3]}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-    # Affichage des indicateurs de risque et performance avec un meilleur style
-    st.markdown("### 📊 Indicateurs de Risque et Performance")
-    st.markdown(
-        f"""
-        <style>
-            .metric-container {{
-                background-color: #f9f9f9;
-                padding: 10px;
-                border-radius: 10px;
-                text-align: center;
-                font-size: 18px;
-            }}
-        </style>
-        <div class="metric-container">
-            <b>Rendement Annuel :</b> {metriques_ptf_initial.iloc[0, 1]}<br>
-            <b>Volatilité Annuelle :</b> {metriques_ptf_initial.iloc[0, 2]}<br>
-            <b>Tracking Error :</b> {metriques_ptf_initial.iloc[0, 3]}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
+     
 elif page == "Analyse détaillée":
     st.markdown("# 📈 **Analyse détaillée du portefeuille**")
     st.write("Ici vous trouverez des analyses plus approfondies sur la composition et les métriques de risque du portefeuille.")

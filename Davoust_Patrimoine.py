@@ -47,7 +47,7 @@ page = st.sidebar.radio("Aller à :", ["Accueil", "Analyse détaillée", "Portef
 
 # Affichage de la page
 if page == "Accueil":
-    st.image("/Users/Meriam/Desktop/M2.IEF/S2.IEF/Risque_et_Performance/projet_RisquePerformances/resultats_analyses/Davoust_Patrimoine.png", use_container_width=True)
+    st.image("Davoust Patrimoine.png", use_column_width=True)
     st.markdown("# 📊 **Suivi et Analyse du Portefeuille**")
     st.write("Bienvenue sur la plateforme d'analyse du portefeuille de Davoust Patrimoine.")
     

@@ -30,9 +30,9 @@ def load_data():
     df_poids_offensif = pd.read_csv(os.path.join(data_folder, "df_poids_offensif.csv"))
     indicateurs_offensifs = pd.read_csv(os.path.join(data_folder, "indicateurs_offensifs.csv"), index_col=0, parse_dates=True)
     
-    return df_weight, indicateur_ptf, indicateur_benchmark, eur_price_matrix, metriques_ptf_initial, indicateur_offensif, metriques_ptf_arbitre, indicateurs_offensifs
+    return df_weight, indicateur_ptf, indicateur_benchmark, eur_price_matrix, metriques_ptf_initial, indicateur_offensif, metriques_ptf_arbitre, indicateurs_offensifs, df_poids_offensif
 
-df_weight, indicateur_ptf, indicateur_benchmark, eur_price_matrix, metriques_ptf_initial, indicateurs_offensif, metriques_ptf_arbitre, indicateurs_offensifs= load_data()
+df_weight, indicateur_ptf, indicateur_benchmark, eur_price_matrix, metriques_ptf_initial, indicateurs_offensif, metriques_ptf_arbitre, indicateurs_offensifs, df_poids_offensif= load_data()
 
 # Après le chargement des données, ajoutez :
 print("Colonnes disponibles dans indicateurs_offensifs:")

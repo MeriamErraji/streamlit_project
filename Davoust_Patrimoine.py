@@ -9,8 +9,8 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="Suivi et Analyse du Portefeuille", layout="centered")
 
 # Définition du chemin des données
-data_folder = "/Users/Meriam/Desktop/M2.IEF/S2.IEF/Risque_et_Performance/projet_RisquePerformances/resultats_analyses/donnees"
-metrics_folder = "/Users/Meriam/Desktop/M2.IEF/S2.IEF/Risque_et_Performance/projet_RisquePerformances/resultats_analyses/metriques"
+data_folder = "resultats_analyses/donnees"
+metrics_folder = "resultats_analyses/metriques"
 
 # Chargement des données
 @st.cache_data

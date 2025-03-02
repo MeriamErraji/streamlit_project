@@ -471,7 +471,9 @@ if page == "Portefeuille Arbitré":
     
 elif page == "Comparaison Portefeuilles":
     st.markdown("# 📊 Comparaison des Portefeuilles (2022–2025)")
-    
+
+    st.header("""***Conclusion***""")
+    st.write("""L'analyse comparative de nos deux portefeuilles met en lumière des approches d'investissement distinctes et complémentaires. Le portefeuille initial, caractérisé par une allocation plus défensive, a permis de bénéficier d'une performance régulière grâce à une exposition équilibrée aux actions européennes et américaines, tout en maintenant une volatilité modérée. En revanche, le portefeuille arbitré, conçu pour exploiter les secteurs technologiques d'avenir – notamment l'intelligence artificielle, la robotique et le Big Data – affiche un rendement annualisé nettement supérieur, bien que cette stratégie soit associée à une volatilité cible plus élevée. La répartition judicieuse des actifs, combinant des titres à fort potentiel de croissance comme NVIDIA et ASML avec des fonds spécialisés et des investissements défensifs, permet de capter les tendances innovantes du marché tout en limitant l'impact des corrections. En définitive, ces résultats illustrent que le choix entre une approche plus prudente et une stratégie offensive dépend du profil de l'investisseur, chacun présentant ses avantages en termes de performance et de maîtrise du risque, tout en soulignant l'importance d'une diversification et d'un suivi régulier pour s'adapter aux évolutions du marché.""")
     # Définir la période d'analyse
     start_date = "2022-01-01"
     end_date   = "2025-01-01"

@@ -246,6 +246,12 @@ def calculate_tracking_error(eur_price_matrix: pd.DataFrame, indicateur_ptf: pd.
 if __name__ == "__main__":
     #main()
     
+    # Création des dossiers
+    output_folder = "resultats_analyses"
+    os.makedirs(output_folder, exist_ok=True)
+    os.makedirs(f"{output_folder}/metriques", exist_ok=True)
+    os.makedirs(f"{output_folder}/graphiques", exist_ok=True)
+    os.makedirs(f"{output_folder}/donnees", exist_ok=True)
     data_folder = "donnees_brutes" 
     os.makedirs(data_folder, exist_ok=True)
 
@@ -506,22 +512,7 @@ if __name__ == "__main__":
     ptf_returns = indicateur_ptf["Ptf_rdt"].loc[common_index]
     bench_returns = indicateur_benchmark["Bench_rdt"].loc[common_index]
     excess_return = ptf_returns - bench_returns
-    """
-    print("Premières dates indicateur_benchmark:\n", indicateur_benchmark.index[:5])
-    print("Premières dates indicateur_ptf:\n", indicateur_ptf.index[:5])
-    
-    print("Dernières dates indicateur_benchmark:\n", indicateur_benchmark.index[-5:])
-    print("Dernières dates indicateur_ptf:\n", indicateur_ptf.index[-5:])
-    
-    print("Taille indicateur_benchmark:", len(indicateur_benchmark))
-    print("Taille indicateur_ptf:", len(indicateur_ptf))
-    
-    # Vérifier les dates communes
-    common_index = indicateur_benchmark.index.intersection(indicateur_ptf.index)
-    print("Nombre de dates communes:", len(common_index))
-    print("Premières dates communes:\n", common_index[:5])
-    print("Dernières dates communes:\n", common_index[-5:])
-    """
+
     # Suppression des valeurs NaN
     excess_return = excess_return.dropna()
     #print("\n EXCESSSSS RETURN \n", excess_return)
@@ -547,7 +538,7 @@ crises = [
 ]
 
 # Création de la figure avec 4 sous-graphiques
-fig, axs = plt.subplots(4, 1, figsize=(12, 16))
+fig, axs = plt.subplots(5, 1, figsize=(12, 16))
 
 # 1. ÉVOLUTION DE LA VALEUR DU PORTEFEUILLE
 axs[0].set_title("Évolution de la valeur du portefeuille")
@@ -580,11 +571,218 @@ for start, end in crises:
     axs[1].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
 
 # 3. VOLATILITÉ ET VAR
-axs[2].set_title("Volatilité et Value at Risk (VaR)")
+axs[2].set_title("Volatilité")
+ax2_bis = axs[2].twinx()
+axs[2].plot(indicateur_ptf.index, indicateur_ptf["roll_vol"], 'r--', label="Volatilité")
+axs[2].set_ylabel("Volatilité")
+
+axs[2].legend(loc="upper left")
+axs[2].grid(True)
+
+# Ajustement des échelles pour éviter l’écrasement des courbes
+axs[2].set_ylim(indicateur_ptf["roll_vol"].min() * 0.9, indicateur_ptf["roll_vol"].max() * 1.1)
+
+# Ajout des zones de crise
+for start, end in crises:
+    axs[2].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
+
+
+# 3. VOLATILITÉ ET VAR
+axs[3].set_title("Volatilité EWMA et Value at Risk (VaR)")
+ax2_bis = axs[3].twinx()
+
+axs[3].plot(indicateur_ptf.index, indicateur_ptf["vol_ewma"], 'r--', label="Volatilité")
+ax2_bis.plot(indicateur_ptf.index, indicateur_ptf["VaR Norm(95%, 1Y)"], 'g-', label="VaR")
+
+axs[3].set_ylabel("Volatilité EWMA")
+ax2_bis.set_ylabel("VaR")
+
+axs[3].legend(loc="upper left")
+ax2_bis.legend(loc="upper right")
+axs[3].grid(True)
+
+# Ajustement des échelles pour éviter l’écrasement des courbes
+axs[3].set_ylim(indicateur_ptf["vol_ewma"].min() * 0.9, indicateur_ptf["vol_ewma"].max() * 1.1)
+ax2_bis.set_ylim(indicateur_ptf["VaR Norm(95%, 1Y)"].min() * 1.1, 0)
+
+# Ajout des zones de crise
+for start, end in crises:
+    axs[3].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
+
+# 4. ÉVOLUTION DU PORTEFEUILLE ET DRAWDOWN
+axs[4].set_title("Évolution du portefeuille et Drawdown")
+ax3_bis = axs[4].twinx()
+
+axs[4].plot(indicateur_ptf.index, indicateur_ptf["Ptf_value"], 'b-', label="Valeur du portefeuille")
+ax3_bis.plot(indicateur_ptf.index, initial_portfolio_drawdown, 'm--', label="Drawdown")
+
+axs[4].set_ylabel("Valeur du portefeuille (€)")
+ax3_bis.set_ylabel("Drawdown (%)")
+
+axs[4].legend(loc="upper left")
+ax3_bis.legend(loc="upper right")
+axs[4].grid(True)
+axs[4].yaxis.set_major_formatter(ScalarFormatter())  # Suppression notation scientifique
+
+# Ajout des zones de crise
+for start, end in crises:
+    axs[4].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
+
+# Formatage de l'axe des dates pour plus de lisibilité
+for ax in axs:
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+    ax.xaxis.set_major_locator(mdates.YearLocator())
+
+# Ajustement automatique de la mise en page
+plt.tight_layout()
+plt.savefig(f"{output_folder}/graphiques/ptf_initial.png", dpi=300, bbox_inches='tight')
+plt.close()
+
+
+
+
+#---------------------------------------------------------------------------------------------------------
+#----------- Même calculs sur une période différente pour comparer avec le portefeuille offensif----------
+#---------------------------------------------------------------------------------------------------------
+
+
+# Suppression des données avant le 31/12/2021
+matrice_bis = eur_price_matrix.loc["2022-01-01":]
+
+# Extraction des prix pour les composants du ptf initial 
+extract_bis =  matrice_bis [[ele for ele in df_weight['Isin'].unique()]]
+extract_bis.index=matrice_bis.index
+
+# Calcul de rendements et volatilité du ptf initial
+df_indicateurs_bis = pd.DataFrame({"prix_initial":extract_bis.dropna().iloc[1],'prix_final':extract_bis.dropna().iloc[-1]})
+
+df_indicateurs_bis['performance_totale']=(df_indicateurs['prix_final']/df_indicateurs['prix_initial'])-1
+
+df_indicateurs_bis['performance_annualisee']=(1+df_indicateurs_bis['performance_totale'])**(252/len(extract_bis))-1
+
+log_rendement_bis = np.log(extract_bis/extract_bis.shift(1)).iloc[1:]
+df_indicateurs_bis['volatilite'] = log_rendement_bis.std()*252**0.5
+
+cov_bis = log_rendement_bis.cov()
+
+#print(df_indicateurs)
+
+# Calcul de la volatilité annualisée du ptf initial
+
+wgt_bis = np.transpose(df_weight['Poids%'])
+vol_ptf_ini_bis =  (252**0.5)*np.dot(np.transpose(df_weight['Poids%']), np.dot(cov_bis, df_weight['Poids%']))**0.5
+
+
+print('Calcul de la volatilité annualisée du ptf initial à partir de 2022', vol_ptf_ini_bis)
+
+
+# Calcul de le rendement annualisé du ptf initial
+er2_bis=df_indicateurs_bis['performance_annualisee']
+ptf_er2_bis=lambda x: np.dot(np.transpose(wgt_bis) ,er2)
+
+
+ptf_er2_bis=lambda x: np.dot(wgt_bis ,er2_bis)
+
+rdt_test_bis=ptf_er2_bis(df_weight)
+print("Rendement annualisé a partir de 2022",rdt_test_bis)
+
+
+
+# Création du DataFrame des indicateurs du portefeuille
+indicateur_ptf_bis = pd.DataFrame(index=extract_bis.index)
+indicateur_ptf_bis = indicateur_ptf_bis.iloc[:-1]
+
+#Rendement du portefeuille (pondéré par les poids
+indicateur_ptf_bis["Ptf_rdt"] = np.dot(log_rendement_bis, wgt_bis)
+
+#Performance cumulée du portefeuille
+indicateur_ptf_bis["Ptf_rdt_cum"] = (1 + indicateur_ptf_bis["Ptf_rdt"]).cumprod()
+
+#Calcul de la valeur du portefeuille avec une valeur initiale
+indicateur_ptf_bis["Ptf_value"] = indicateur_ptf_bis["Ptf_rdt_cum"] * valeur_initiale
+
+#Calcul de la volatilité glissante (fenêtre 252 jours, annualisée)
+indicateur_ptf_bis["roll_vol"] = indicateur_ptf_bis["Ptf_rdt"].rolling(252).std() * np.sqrt(252)
+#print(indicateur_ptf)
+
+# Calcul de la volatilité glissante
+roll_vol_bis = indicateur_ptf_bis[["Ptf_rdt"]].rolling(252).std() * np.sqrt(252)
+indicateur_ptf_bis["roll_vol"] = roll_vol_bis
+    # Statistiques de volatilité
+stats_vol_bis = {
+    "last": roll_vol_bis[["Ptf_rdt"]].values[-1][0],
+    "mean": roll_vol_bis["Ptf_rdt"].mean(),
+    "q_10": roll_vol_bis["Ptf_rdt"].quantile(0.10),
+    "q_25": roll_vol_bis["Ptf_rdt"].quantile(0.25),
+    "q_75": roll_vol_bis["Ptf_rdt"].quantile(0.75)
+}
+
+# Calcul de la volatilité EWMA
+l = 0.94
+lambdas = [[
+    (1-l)*l**i 
+    for i in range(251,-1,-1)
+]]
+
+def vol_ewma(l_ret):
+    r_squared = l_ret**2
+    return (np.dot(r_squared, np.transpose(lambdas))[0]*252)**0.5
+
+indicateur_ptf_bis["vol_ewma"] = indicateur_ptf_bis[["Ptf_rdt"]].rolling(252).apply(vol_ewma)
+
+# Calcul VaR
+def var_normale(vol, confiance, maturity):
+    return -vol * norm.ppf(confiance) * np.sqrt(maturity)
+
+indicateur_ptf_bis["VaR Norm(95%, 1Y)"] = indicateur_ptf_bis.apply(
+    lambda row: var_normale(row["vol_ewma"], 0.95, 1),
+    axis=1
+)
+
+    # Maximum Drawdown
+max_portfolio_value_bis = np.maximum.accumulate(indicateur_ptf_bis['Ptf_value'].dropna())
+initial_portfolio_drawdown_bis = indicateur_ptf_bis['Ptf_value'] / max_portfolio_value_bis - 1.0
+drawdown_end_date_bis = initial_portfolio_drawdown_bis.idxmin()
+
+max_drawdown_stats = {
+    "MaxDD": initial_portfolio_drawdown_bis.min(),
+    "start": indicateur_ptf_bis['Ptf_value'].loc[:drawdown_end_date_bis].idxmax(),
+    "end": drawdown_end_date_bis
+}
+
+
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.ticker import ScalarFormatter
+
+# Définition des périodes de crise (à ajuster si besoin)
+crises = [
+    ("2020-02", "2020-05"),  # COVID-19 crash
+    ("2022-02", "2022-07"),  # Conflit Ukraine
+    ("2023-03", "2023-06"),  # Crise bancaire US
+]
+
+# Création de la figure avec 4 sous-graphiques
+fig, axs = plt.subplots(5, 1, figsize=(12, 16))
+
+# 1. ÉVOLUTION DE LA VALEUR DU PORTEFEUILLE
+axs[0].set_title("Évolution de la valeur du portefeuille à partir de 2022")
+axs[0].plot(indicateur_ptf_bis.index, indicateur_ptf_bis["Ptf_value"], 'b-', label="Valeur du portefeuille")
+axs[0].set_ylabel("Valeur (€)")
+axs[0].legend(loc="upper left")
+axs[0].grid(True)
+axs[0].yaxis.set_major_formatter(ScalarFormatter())  # Suppression notation scientifique
+
+# Ajout des zones de crise
+for start, end in crises:
+    axs[0].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
+
+# 3. VOLATILITÉ ET VAR
+axs[2].set_title("Volatilité et Value at Risk (VaR) à partir de 2022")
 ax2_bis = axs[2].twinx()
 
-axs[2].plot(indicateur_ptf.index, indicateur_ptf["roll_vol"], 'r--', label="Volatilité")
-ax2_bis.plot(indicateur_ptf.index, indicateur_ptf["VaR Norm(95%, 1Y)"], 'g-', label="VaR")
+axs[2].plot(indicateur_ptf_bis.index, indicateur_ptf_bis["roll_vol"], 'r--', label="Volatilité")
+ax2_bis.plot(indicateur_ptf_bis.index, indicateur_ptf_bis["VaR Norm(95%, 1Y)"], 'g-', label="VaR")
 
 axs[2].set_ylabel("Volatilité")
 ax2_bis.set_ylabel("VaR")
@@ -594,8 +792,8 @@ ax2_bis.legend(loc="upper right")
 axs[2].grid(True)
 
 # Ajustement des échelles pour éviter l’écrasement des courbes
-axs[2].set_ylim(indicateur_ptf["roll_vol"].min() * 0.9, indicateur_ptf["roll_vol"].max() * 1.1)
-ax2_bis.set_ylim(indicateur_ptf["VaR Norm(95%, 1Y)"].min() * 1.1, 0)
+axs[2].set_ylim(indicateur_ptf_bis["roll_vol"].min() * 0.9, indicateur_ptf_bis["roll_vol"].max() * 1.1)
+ax2_bis.set_ylim(indicateur_ptf_bis["VaR Norm(95%, 1Y)"].min() * 1.1, 0)
 
 # Ajout des zones de crise
 for start, end in crises:
@@ -605,8 +803,8 @@ for start, end in crises:
 axs[3].set_title("Évolution du portefeuille et Drawdown")
 ax3_bis = axs[3].twinx()
 
-axs[3].plot(indicateur_ptf.index, indicateur_ptf["Ptf_value"], 'b-', label="Valeur du portefeuille")
-ax3_bis.plot(indicateur_ptf.index, initial_portfolio_drawdown, 'm--', label="Drawdown")
+axs[3].plot(indicateur_ptf_bis.index, indicateur_ptf_bis["Ptf_value"], 'b-', label="Valeur du portefeuille")
+ax3_bis.plot(indicateur_ptf_bis.index, initial_portfolio_drawdown_bis, 'm--', label="Drawdown")
 
 axs[3].set_ylabel("Valeur du portefeuille (€)")
 ax3_bis.set_ylabel("Drawdown (%)")
@@ -630,13 +828,7 @@ plt.tight_layout()
 plt.show()
 
 
-
-
-
-
-
-
-
+#---------------------------------------------------------------------------------------------------------
 
 
 
@@ -678,13 +870,15 @@ matrice_prix_offensif_eur = matrice_prix_offensif_eur.loc["2022-01-01":]
 
 # Définition des fonds et montants investis
 valeurs_offensives = {
-    'LU1883854199': 150000.00,  'LU1103207525': 150000.00,  
-    'LU1244893696': 150000.00,  'LU1919842267': 150000.00,  
-    'LU1861132840': 150000.00,  'PIRPEUR LX': 150000.00,    
+    'LU1883854199': 150000.00,  'LU1191877379': 150000.00,  
+    'LU1244893696': 150000.00,  'LU1919842267': 150000.00,   
+    'PIRPEUR LX': 150000.00,    'LU0072462186': 150000.00,
     'ALGAATU LX': 150000.00,    'PFLDCPE LX': 150000.00,    
     'FFGLCAE LX': 150000.00,    'NVDA US': 150000.00,  
     '9888 HK': 150000.00,       'BEAN SW': 150000.00,  
-    'ASML NA': 150000.00,       'SIE GY': 150000.00   
+    'ASML NA': 150000.00,       'SIE GY': 150000.00,   
+    'WQDA NA': 150000.00,       'LU1893597309': 150000.00,
+    'LU0154236417': 150000.00,  
 }
 
 # Création du DataFrame des pondérations
@@ -812,7 +1006,7 @@ tracking_error_series_smoothed = tracking_error_series.ewm(span=30).mean()
 start_date = "2021-12-31"
 end_date = "2025-01-02"
 
-fig, axs = plt.subplots(4, 1, figsize=(12, 16))
+fig, axs = plt.subplots(5, 1, figsize=(12, 16))
 
 # 1. Évolution de la valeur du portefeuille arbitré
 axs[0].set_title("Évolution de la valeur du portefeuille arbitré")
@@ -822,6 +1016,10 @@ axs[0].legend(loc="upper left")
 axs[0].grid(True)
 axs[0].yaxis.set_major_formatter(ScalarFormatter())
 axs[0].set_xlim(pd.to_datetime(start_date), pd.to_datetime(end_date))  # Fixer la plage d'affichage
+
+# Ajout des zones de crise
+for start, end in crises:
+    axs[0].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
 
 # 2. Évolution des fonds du portefeuille arbitré
 axs[1].set_title("Évolution des fonds du portefeuille arbitré")
@@ -835,36 +1033,62 @@ axs[1].legend(loc="upper left", fontsize="small", ncol=2)
 axs[1].grid(True)
 axs[1].set_xlim(pd.to_datetime(start_date), pd.to_datetime(end_date))  # Fixer la plage d'affichage
 
+# Ajout des zones de crise
+for start, end in crises:
+    axs[1].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
+
 # 3. Volatilité et Value at Risk (VaR)
-axs[2].set_title("Volatilité et Value at Risk (VaR)")
-ax2_bis = axs[2].twinx()
-
+axs[2].set_title("Volatilité")
 axs[2].plot(indicateurs_offensifs.index, indicateurs_offensifs["Volatilite_glissante"], 'r--', label="Volatilité")
-ax2_bis.plot(indicateurs_offensifs.index, indicateurs_offensifs["VaR Norm(95%, 1Y)"], 'g-', label="VaR")
-
 axs[2].set_ylabel("Volatilité")
-ax2_bis.set_ylabel("VaR")
 
 axs[2].legend(loc="upper left")
-ax2_bis.legend(loc="upper right")
 axs[2].grid(True)
 axs[2].set_xlim(pd.to_datetime(start_date), pd.to_datetime(end_date))  # Fixer la plage d'affichage
 
-# 4. Évolution du portefeuille arbitré et Drawdown
-axs[3].set_title("Évolution du portefeuille arbitré et Drawdown")
-ax3_bis = axs[3].twinx()
 
-axs[3].plot(indicateurs_offensifs.index, indicateurs_offensifs["Valeur_Ptf"], 'b-', label="Valeur du portefeuille arbitré")
-ax3_bis.plot(Daily_Drawdown_offensif.index, Daily_Drawdown_offensif, 'm--', label="Drawdown")
+# Ajout des zones de crise
+for start, end in crises:
+    axs[2].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
+                              
+# 3. Volatilité et Value at Risk (VaR)
+axs[3].set_title("Volatilité EWMA et Value at Risk (VaR)")
+ax2_bis = axs[3].twinx()
 
-axs[3].set_ylabel("Valeur du portefeuille (€)")
-ax3_bis.set_ylabel("Drawdown (%)")
+axs[3].plot(indicateurs_offensifs.index, indicateurs_offensifs["vol_ewma"], 'r--', label="Volatilité")
+ax2_bis.plot(indicateurs_offensifs.index, indicateurs_offensifs["VaR Norm(95%, 1Y)"], 'g-', label="VaR")
+
+axs[3].set_ylabel("Volatilité EWMA")
+ax2_bis.set_ylabel("VaR")
 
 axs[3].legend(loc="upper left")
-ax3_bis.legend(loc="upper right")
+ax2_bis.legend(loc="upper right")
 axs[3].grid(True)
-axs[3].yaxis.set_major_formatter(ScalarFormatter())
 axs[3].set_xlim(pd.to_datetime(start_date), pd.to_datetime(end_date))  # Fixer la plage d'affichage
+# Ajout des zones de crise
+for start, end in crises:
+    axs[3].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
+
+
+# 4. Évolution du portefeuille arbitré et Drawdown
+axs[4].set_title("Évolution du portefeuille arbitré et Drawdown")
+ax3_bis = axs[4].twinx()
+
+axs[4].plot(indicateurs_offensifs.index, indicateurs_offensifs["Valeur_Ptf"], 'b-', label="Valeur du portefeuille arbitré")
+ax3_bis.plot(Daily_Drawdown_offensif.index, Daily_Drawdown_offensif, 'm--', label="Drawdown")
+
+axs[4].set_ylabel("Valeur du portefeuille (€)")
+ax3_bis.set_ylabel("Drawdown (%)")
+
+axs[4].legend(loc="upper left")
+ax3_bis.legend(loc="upper right")
+axs[4].grid(True)
+axs[4].yaxis.set_major_formatter(ScalarFormatter())
+axs[4].set_xlim(pd.to_datetime(start_date), pd.to_datetime(end_date))  # Fixer la plage d'affichage
+
+# Ajout des zones de crise
+for start, end in crises:
+    axs[4].axvspan(pd.to_datetime(start), pd.to_datetime(end), color='gray', alpha=0.3)
 
 # Formatage de l'axe des dates
 for ax in axs:
@@ -872,7 +1096,8 @@ for ax in axs:
     ax.xaxis.set_major_locator(mdates.YearLocator())
 
 plt.tight_layout()
-plt.show()
+plt.savefig(f"{output_folder}/graphiques/ptf_arbitre.png", dpi=300, bbox_inches='tight')
+plt.close()
 
 
 
@@ -899,13 +1124,8 @@ Daily_Drawdown.to_pickle(os.path.join(output_folder, "daily_drawdown.pkl"))
 print("\n📂 Export terminé ! Les fichiers sont enregistrés dans le dossier 'resultats_exportes'.")
 
 """
-# Création des dossiers
-output_folder = "resultats_analyses"
-os.makedirs(output_folder, exist_ok=True)
-os.makedirs(f"{output_folder}/graphiques", exist_ok=True)
-os.makedirs(f"{output_folder}/metriques", exist_ok=True)
-os.makedirs(f"{output_folder}/donnees", exist_ok=True)
 
+"""
 # Sauvegarde des graphiques individuels - Portefeuille Initial
 fig1, ax1 = plt.subplots(figsize=(12, 6))
 ax1.plot(indicateur_ptf.index, indicateur_ptf["Ptf_value"], 'b-')
@@ -957,7 +1177,7 @@ ax8.plot(Daily_Drawdown_offensif.index, Daily_Drawdown_offensif, 'm--')
 ax8.set_title("Drawdown du portefeuille arbitré")
 plt.savefig(f"{output_folder}/graphiques/ptf_arbitre_drawdown.png", dpi=300, bbox_inches='tight')
 plt.close()
-
+"""
 # Sauvegarde des métriques
 metriques_initial = {
     'Rendement annuel': f"{rdt_test:.2%}",
@@ -965,6 +1185,11 @@ metriques_initial = {
     'Tracking Error': f"{tracking_error_initiale:.2%}"
 }
 
+metriques_initial_comparable = {
+    'Rendement annuel': f"{rdt_test_bis:.2%}",
+    'Volatilité annuelle': f"{vol_ptf_ini_bis:.2%}",
+    
+}
 metriques_arbitre = {
     'Rendement annuel': f"{rendement_annuel:.2%}",
     'Volatilité annuelle': f"{volatilite_annuelle:.2%}",
@@ -973,17 +1198,24 @@ metriques_arbitre = {
 
 pd.DataFrame([metriques_initial]).to_excel(f"{output_folder}/metriques/metriques_ptf_initial.xlsx")
 pd.DataFrame([metriques_arbitre]).to_excel(f"{output_folder}/metriques/metriques_ptf_arbitre.xlsx")
+pd.DataFrame([metriques_initial_comparable]).to_excel(f"{output_folder}/metriques/metriques_initial comparable.xlsx")
 
 # Sauvegarde des DataFrames
 dataframes = {
-    'prix_matrix': price_matrix,
+    'matrice_prix_offensif_eur': matrice_prix_offensif_eur,
     'eur_price_matrix': eur_price_matrix,
     'indicateur_ptf': indicateur_ptf,
+    'cov_compo':cov_compo,
+    'indicateur_comparaison': indicateur_ptf_bis,
+
+    
     'bench_matrix': bench_matrix,
     'indicateur_benchmark': indicateur_benchmark,
     'indicateurs_offensifs': indicateurs_offensifs,
     'df_weight': df_weight,
-    'df_poids_offensif': df_poids_offensif
+    'df_poids_offensif': df_poids_offensif,
+    'covariance_offensif': covariance_offensive,
+    
 }
 
 # Export en Excel avec plusieurs onglets
